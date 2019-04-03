@@ -1,0 +1,49 @@
+---
+title: "Exam_Peter_Tempfli"
+author: "Peter Tempfli"
+date: "4/2/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(ggplot2)
+
+```
+
+## Sampling
+
+I've created 3 functions:
+
+* `hand` creates a hand (for example, [1,1,0,0,2]). Every number represents a color.
+* `number_of_colors` counts the number of unique colors in a hand; the outcome of `hand` is passed to this functions
+* `draws` creates N unique hands, and returns the number of hands which had at most 2 unique colors.
+
+It is easy to see why `draws(N)/N` function converges to the probability of *at most 2 unique colors in a hand*. (so with a large enough N number we can get accurate enough results. Example: `draws(100000)/100000 = 0.14722`)
+
+
+```{r}
+hand <- function() {
+  sample(c(rep(1,13), rep(2,13), rep(3,13), rep(4,14)), 5)  
+}
+
+number_of_colors <- function(h) {
+  colors = c(sum(h==1), sum(h==2), sum(h==3), sum(h==4))
+  return(sum(colors != 0))
+}
+
+draws <- function(n) {
+  at_most_2 <- 0
+  for (i in seq(n)) {
+    if (number_of_colors(hand()) <= 2) at_most_2 = at_most_2 + 1
+  }
+  return (at_most_2)
+}
+```
+
+
+```{r}
+df <- data.frame(x=seq(500))
+df$prob <- sapply(df$x, draws)
+ggplot(data=df, aes(x=x, y=prob)) + geom_point()
+
+```

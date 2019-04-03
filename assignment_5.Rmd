@@ -1,0 +1,120 @@
+---
+title: "Binary Regression and Non-linear Optimisation with R"
+author: "Peter Tempfli"
+date: "3/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(car)
+library(caret)
+data(Mroz)
+attach(Mroz)
+library(ggplot2)
+
+df<- Mroz
+df$lfp <- ifelse(lfp=='yes', 1, 0)
+df$wc <- ifelse(wc=='yes', 1, 0)
+df$hc <- ifelse(hc=='yes', 1, 0)
+```
+
+## 1 a,
+
+```{r}
+reg <- glm(lfp ~ age + k5 + k618 + wc, data=df, family=binomial("logit"))
+summary(reg)
+
+## first prediction
+pr1 <- predict(reg, df, type="response")
+summary(pr1)
+
+
+n <- nrow(df)
+
+ggplot(data=df, aes(y = lfp, x=seq(1, n))) + geom_point() + geom_point(aes(y=pr1), color="blue")
+
+#ggplot(data=data.frame(pr1), aes(x=pr1))+geom_histogram(binwidth = 0.02) 
+
+```
+## Comments
+
+* Every parameter except college attendece (`wc`) has negative effect (beta < 0)
+* `k618` parameter has a very high P value, so it's effect is not sygnificant. Probably we should not use it in the model.
+
+```{r}
+lfpVsPrediction = data.frame(lfp=ifelse(Mroz$lfp == 'yes', 1, 0), prediction=pr1)
+lfpVsPrediction$pr = ifelse(lfpVsPrediction$prediction > 0.5, 1, 0)
+
+sensitivity(as.factor(lfpVsPrediction$pr), as.factor(lfpVsPrediction$lfp))
+specificity(as.factor(lfpVsPrediction$pr), as.factor(lfpVsPrediction$lfp))
+
+```
+
+True positives: 338
+True negatives : 161
+False positives : 164
+False negatives : 90
+
+Model sensitivity: 49%
+Model specificity: 78%
+
+
+* The model can predict with good rate if a women won't participate (true negative). However, it can't predict confidentally if a women will participate (true positives).
+
+
+## 1 b,
+```{r}
+predict(reg,data.frame(age=30, wc=1, k5=1, k618=0), type="response")
+```
+
+## 1 c,
+If Sue had another child, her probability to work is slightly lower. This is because `k618` beta is `-0.10885`
+```{r}
+predict(reg,data.frame(age=30, wc=1, k5=1, k618=1), type="response")
+```
+
+## 1 d,
+```{r}
+predict(reg,data.frame(age=25, wc=0, k5=1, k618=0), type="response")
+```
+
+## 1 e 
+College attendece beta is positive, so it's increasing the likelihood to work.
+```{r}
+predict(reg,data.frame(age=25, wc=1, k5=1, k618=0), type="response")
+```
+
+## 1 f
+According to this regression, higher family income implies lower likelihood to work (`inc` beta is negative, and P is very low, so significant).
+
+```{r}
+reg2 <- glm(lfp ~ age + k5 + k618 + wc + hc + inc + lwg, data=df, family=binomial("logit"))
+summary(reg2)
+```
+
+# 2 a
+We can reject the zero hypothesis.
+```{r}
+hip0 <- glm(lfp ~ 1, family=binomial("logit"), data=df)
+hip1 <- glm(lfp ~ k5 + k618 + age + wc + hc + lwg + inc, family=binomial("logit"), data=df)
+anova(hip0, hip1, test='Chisq')
+```
+
+## 2 b
+As P-value is high for the second model compared to first, we can accept the zero hypothesis
+(so adding `k618` to the model doesn't give us any significant effect, which we already seen in the first exersice)
+```{r}
+hip0 <- glm(lfp ~ k5, family=binomial("logit"), data=df)
+hip1 <- glm(lfp ~ k5 + k618, family=binomial("logit"), data=df)
+anova(hip0, hip1, test='Chisq')
+```
+
+## 2 c
+
+We can reject the zero hypothesis -- P is very low for the alternative hypothesis, so `lfp` DEPENDES on college attendence.
+```{r}
+hip0 <- glm(lfp ~ 1, family=binomial("logit"), data=df)
+hip1 <- glm(lfp ~ wc, family=binomial("logit"), data=df)
+anova(hip0, hip1, test='Chisq')
+```

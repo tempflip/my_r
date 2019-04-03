@@ -1,0 +1,120 @@
+---
+title: "Exercise set 2"
+author: "Peter Tempfli"
+date: "2/11/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+library(AER)
+library(ggplot2)
+library(GGally)
+data("CPS1985")
+```
+
+## 1. Simple regression with one regressor.
+
+**a, Summary of the data**
+```{r}
+summary(CPS1985)
+ggpairs(CPS1985[c('wage','education','experience','age')])
+```
+
+**b, A regression with wage as dependent variable and education as regressor**
+```{r}
+mod1 = lm(wage ~ education, data = CPS1985)
+mod1
+
+```
+
+**c, What is the estimated average wage of an individual with 10 years of education according to the regression results?**
+
+```{r}
+beta0 <- mod1$coefficients[1]
+beta1 <- mod1$coefficients[2]
+
+prediction_ten_years <- beta0 + beta1 * 10
+prediction_ten_years
+```
+Plotting the result:
+```{r}
+ggplot(data = CPS1985, aes(x=education, y=wage)) + 
+  geom_jitter(alpha=0.3, width=0.1) + 
+  geom_point(aes(x=10, y = prediction_ten_years), color='red', size=5)
+```
+
+**d, P-values and other information about the regression.**
+```{r}
+summary(mod1)
+```
+
+**e, Explanation**: beta1 = 0.75; so every year in education adds on everage 0.75$/hour; adjusted with beta0 (which is -0.74)
+
+T-Testing: 
+
+H0: no signigicance, so P is about 1. We want to prove that education does NOT have effect to the wage.
+
+This is a 2-tailed H-test, where *H0 : M(Higher Education) - M(Any Education) = 0*
+
+H1: there IS significant evidence, so P is  closer to 0. If it is true, it means education HAS effect on the wage.
+
+
+**We have a very low P-value (2.2e-16), so we can decline H0.**
+
+
+## Simple regression with a dummy regressor. Continue to use the data set CPS1985.
+
+**a, Run a regression with wage as dependent variable and gender as regressor (X-variable).**
+```{r}
+wageGenderMod <- lm(wage ~ gender, data=CPS1985)
+summary(wageGenderMod)
+```
+**b, According to the regression estimates, do women in the popula- tion earn less or more than men?**
+
+Yes. Male-female multiplier is -2.1161, and as 'female' value is the second in the factor (2), this means these records will yield lower values.
+
+```{r}
+ggplot() + 
+  geom_point(data=subset(CPS1985, gender=='male'), aes(x=education, y=wage), color="blue", alpha=0.3) +
+  geom_point(data=subset(CPS1985, gender=='female'), aes(x=education, y=wage), color="red", alpha=0.3)
+```
+
+**c, Is the gender difference significant?**
+
+Yes. P = 1.703e-06, which is very slow. This is very high efidence.
+
+**b, Construct a (numerical) dummy variable coded 1 if female and 0 if male. Use this dummy in the regression instead of the factor variable gender. Do you get the same regression results?**
+
+```{r}
+CPS1985$gender_num <- ifelse(CPS1985$gender == 'female', 1, 0)
+wageGenderMod <- lm(wage ~ gender_num, data=CPS1985)
+summary(wageGenderMod)
+```
+
+Yes. Looks like LM uses also 0 and 1 when converting factorials.
+
+**e, It is possible to show** that the sample average (Y ̄) is the least squares estimator of the population average. In the previous re- gression we have computed the least squares estimators of the averages of the populations for men and women. Compute the sample averages for both women and men. Compare the sample averages to the fitted values for men and women from the pre- vious regression. Are the predicted averages from the regression equal to the sample averages?
+
+```{r}
+d_male <- subset(CPS1985, gender=="male")
+d_female <- subset(CPS1985, gender=="female")
+
+
+b0 = wageGenderMod$coefficients[1]
+b1 = wageGenderMod$coefficients[2]
+
+mean(CPS1985$wage)
+mean( b0 + b1 * CPS1985$gender_num)
+
+mean(d_male$wage)
+mean( b0 + b1 * d_male$gender_num)
+mean(d_female$wage)
+mean( b0 + b1 * d_female$gender_num)
+
+```
+
+As you can see in the last 4 line, mean male population is the same as the predicted male population. Same for female population.
+
+

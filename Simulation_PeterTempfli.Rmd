@@ -1,0 +1,100 @@
+---
+title: "Simulation"
+author: "Peter Tempfli"
+date: "3/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(boot)
+library(ggplot2)
+```
+
+# 1 Estimation
+
+Area under the function (integral) : `0.6289809 (x = 0..PI)`
+
+```{r}
+df <- data.frame(x=seq(0,pi, 0.005))
+df$sin = sin(df$x)
+N <- nrow(df)
+dots <- runif(N, 0, 1)
+
+ggplot(data=df, aes(x=x)) + 
+  geom_point(aes(y=sin)) +
+  geom_point(aes(y=dots, color = ifelse(dots > sin, 1, 0)))
+
+
+ratio <- sum(dots < df$sin) / N
+ratio
+```
+# 2 Dices
+Probability of having the same mumbers:  `0.6289809`
+``` {r}
+set.seed(9313)
+dices <- function(x) {
+  return (round(runif(1,1,6)) == round(runif(1,1,6)))
+}
+
+N <- 1000
+p <- N / sum(sapply(seq(N), dices))
+p ## probability
+
+```
+
+# 3 Weight mean confidence level bootstrap
+
+```{r}
+myMean <- function(d, i) {
+  return( mean(d[i]))
+}
+
+s <- c(119,120,131,209,210,337,332,287,146,129,232,169,208,253,142,105,419,179,324,287)
+b <- boot(data=s, R=200, statistic = myMean)
+boot.ci(b, conf=0.9)
+```
+
+# 4 Regression -- coefficient bootstrap
+```{r}
+
+bootMod <- function(df, i) {
+  m <- lm(y ~ x, df[i,])
+  return (m$coefficients)
+}
+
+df <- data.frame(x = c(1,2,3,5,4), y = c(13,14,15,18,22))
+b <- boot(df, bootMod, 10)
+b
+boot.ci(b, conf=0.9)
+
+```
+
+# 5 Placebo test
+
+From this we can conclude that the average blind effect is somewhere without -1.5 - +1.5, while the effect from the data is `3.36`. So the effect is significant. 
+
+```{r}
+set.seed(10)
+df <- data.frame(bottle = c(0,1,1,0,0,0,1,0,0,0,1,1,0,1,1,1,1,0,1), age = c(9,14,15,10,12,6,19,10,8,6,12,13,20,13,16,14,9,12,12))
+
+caries_bottle1 = mean(subset(df, bottle == 1)$age)
+caries_bottle1
+caries_bottle0 = mean(subset(df, bottle == 0)$age)
+caries_bottle0
+
+bottle_effect = caries_bottle1 - caries_bottle0
+bottle_effect
+
+placebo  <- function(x) {
+  si = sample(2, 19, replace=T, prob=c(0.5, 0.5))
+  group1 <- df[si==1,]
+  group2 <- df[si==2,]
+  
+  random_effect = mean(group1$age) - mean(group2$age)
+  return (random_effect)
+}
+
+qplot(sapply(seq(1000), placebo))
+
+```
+

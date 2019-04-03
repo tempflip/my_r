@@ -1,0 +1,172 @@
+---
+title: "Exercise set 1 -- Peter Tempfli"
+output:
+  html_document: default
+  pdf_document: default
+---
+tempflip@gmail.com
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## 1.
+
+The initial state
+```{r}
+vec1<-c(0,2,3,0,2,11,0,7,NA)
+```
+
+
+
+Use indexing to remove the NA.
+
+```{r}
+vec1 <- vec1[!is.na(vec1)]
+vec1
+```
+
+
+
+Make a logical vector indicating the elements equal to zero
+
+```{r}
+myZeroPositions <- vec1==0
+myZeroPositions
+```
+
+
+
+Use the logical vector to pick out the zero values and store them in a vector called ‘zeros’.
+```{r}
+zeros <- vec1[myZeroPositions]
+zeros
+```
+
+
+Check how many zeros you have in vec1 by taking the length of the vector zeros (use function length()).
+```{r}
+length(zeros)
+```
+
+# 2.
+
+```{r}
+w <- c(109, 112, 115, 121, 128, 132, 135, 140, 148)
+m <- c(120, 122, 124, 130, 136, 140, 143, 150, 155)
+df <- data.frame(M = m, W = w)
+row.names(df) <- seq(2003, 2011)
+df <- t(df)
+
+df
+```
+
+Construct a data frame from the table below, including the three variables W (average wage/h), YEAR (including the years for each observation) and Gender (including characters for Women/Men).
+
+### Explanation:
+I use the `melt` function in order to transform the data to long-format (= every observation has a separate row in the DF). Than I set manually the column names.
+
+```{r}
+library(reshape2)
+each_observastion <- melt(df)
+names(each_observastion) <- c('gender', 'year', 'wage')
+each_observastion
+
+setwd('~/prog/r')
+write.csv(each_observastion, file='mydata.csv')
+
+```
+
+# 3.
+
+``` {r}
+library(openxlsx)
+fr <- read.xlsx('~/Desktop/R/Freedman.xlsx')
+fr$population <- as.numeric(fr$population)
+fr$nonwhite <- as.numeric(fr$nonwhite)
+fr$density <- as.numeric(fr$density)
+
+summary(fr)
+```
+
+### Some basic visualization of the data
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(GGally)
+ggpairs(fr[, -1])
+```
+
+# 4.
+```{r}
+library(car)
+pr <- Prestige
+
+```
+
+Select a subset of the data for occupations with more than 50% women and call the subset ‘sub Prestige’.
+
+```{r}
+sub_Prestige <- pr[pr$women>50,]
+sub_Prestige
+
+```
+Use the subset and compute the average prestige score.
+```{r}
+mean(sub_Prestige$prestige)
+```
+
+Now compute the average prestige score for occupations with less
+than 50% women
+```{r}
+mean( subset(pr, women < 50)$prestige )
+```
+
+For this question use the complete Prestige data again. Make a for-loop to compute the average prestige score for the three dif- ferent types of occupations. Automatically store the three means in a vector. The loop should be general, i.e. even if the types of occupations were 100000 one should be able to use your loop.
+
+### Explanation:
+
+The function calculates the means of a property, grouped by another property. In the example above calculates the 'prestige' mean value, grouped by 'type'.
+
+The group-by column must be a factor.
+
+
+```{r}
+
+mean_by_key <- function(df, valname, keyname) {
+
+  counters <- rep(0, length(levels(df[,keyname]) ))
+  sums <- rep(0, length(levels(df[,keyname]) ))
+
+  for (i in seq(0:nrow(df))) {
+    
+    val <- df[i,valname]
+    key <- df[i, keyname]
+    counters[as.numeric(key)] <- counters[as.numeric(key)] + 1 
+    sums[as.numeric(key)] <- sums[as.numeric(key)] + val
+    
+  }
+  
+  r <- data.frame(sums/counters)
+  rownames(r) <- levels(df[,keyname])
+  colnames(r) <- c(valname)
+  return(r)
+}
+
+```
+
+Demo
+```{r}
+pr <- Prestige
+means_for_types <- mean_by_key(pr, 'prestige', 'type') ## column name and the grouped by are dynamic
+means_for_types
+```
+
+We can check if our function output is correct, using the built-in `by` function.
+
+```{r}
+by(pr$prestige, pr$type, mean)
+```
+

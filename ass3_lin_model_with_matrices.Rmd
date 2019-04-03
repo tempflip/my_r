@@ -1,0 +1,101 @@
+---
+title: "Matrices and vectors for regression with R"
+author: "Peter Tempfli"
+date: "2/13/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(car)
+```
+
+
+# 1a
+```{r}
+m1 <- cbind(c(1,1,1,1), c(3,4,5,6), c(5,5,3,1))
+m1
+m2 <- rbind(c(1,3,5), c(1,4,5), c(1,5,3), c(1,6,1))
+m2
+m3 <- matrix(c(1,1,1,1,3,4,5,6,5,5,3,1), ncol=3)
+m3
+```
+
+
+# 1b
+```{r}
+X = m1
+XX <- t(X) %*% X
+XX
+```
+
+# 1c
+
+```{r}
+XX_i <- solve(XX)
+XX_i
+round(XX %*% XX_i)
+```
+
+# 2
+```{r}
+Y <- matrix(c(1,2,3,5))
+```
+
+# 2a What is the sample size, n? 
+
+There are 4 samples (4 rows)
+
+# 2b How many are the regressors, K?
+
+K = 2. (3 columns, but 1st is the intercept)
+
+# 2c Compute the least squares estimator of β
+
+```{r}
+B_matrix <- solve(t(X) %*% X) %*% t(X) %*% Y
+B_matrix
+```
+
+Check the betas with the lm function:
+```{r}
+df <- data.frame(X)
+names(df) <- c('intercept1', 'first', 'second')
+control_mod <- lm(Y ~ df$first + df$second)
+
+control_mod
+B_matrix
+```
+
+# 2d T-test
+```{r}
+beta_h = B_matrix
+
+y_h <- X%*%beta_h
+
+U_h <- Y - y_h
+
+n <- (length(Y))
+
+K <- ncol(X) - 1
+
+s_2 <- sum(U_h^2)/(n-K-1)
+
+SE <- sqrt(s_2*diag(solve(t(X)%*%X)))
+
+t_0 <- beta_h/SE
+t_0
+```
+
+# 2e P-value
+
+```{r}
+2*pt(abs(t_0),df=(n-K-1),lower.tail=F)
+```
+
+This is a huge P-value, bc there are not enough datapoints.
+
+# 2f
+```{r}
+summary(control_mod)
+```
+

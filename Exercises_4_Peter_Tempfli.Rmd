@@ -1,0 +1,217 @@
+---
+title: 'Exercises 4: More Regression with R'
+author: "Peter Tempfli"
+date: "3/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(car)
+library(AER)
+library(sandwich)
+library(lmtest)
+library(ggplot2)
+library(gridExtra)
+```
+
+# 1, Consider the following model: 
+Y =β0 +β1X1 +β2X2 +X3β3 +U
+
+
+### a, H0 : β0 = 0 & β1 = 0 & β2 = 0 & β3 = 0
+```{r}
+R = diag(4)
+r = cbind(c(0,0,0,0))
+R
+r
+```
+
+### b H0 : β0 = 0 & β1 = 0
+```{r}
+R = rbind(c(1,0,0,0), c(0,1,0,0))
+r = cbind(c(0,0))
+R
+r
+```
+### c H0 : β0 = 1 & β1 = 1
+```{r}
+R = rbind(c(1,0,0,0), c(0,1,0,0))
+r = cbind(c(1,1))
+R
+r
+```
+
+### d H0 : β1 = 0
+```{r}
+R = rbind(c(0,1,0,0))
+r = cbind(c(0))
+R
+r
+```
+### e H0 : β1 + β2 = 1
+```{r}
+R = rbind(c(0,1,1,0))
+r = cbind(c(1))
+R
+r
+```
+
+
+# 2 - models
+
+Y = exp(Xβ + U) (1)
+
+Y = Xβ + U (2)
+
+```{r}
+
+data("CPS1985")
+CPS1985$experience_2 <- CPS1985$experience^2
+CPS1985$experience_3 <- CPS1985$experience^3
+CPS1985$experience_4 <- CPS1985$experience^4
+CPS1985$experience_5 <- CPS1985$experience^5
+
+mod1 <- lm(log(wage) ~ education + married + gender + experience + experience_2 + experience_3, data = CPS1985)
+summary(mod1)
+
+mod2 <- lm(wage ~ education + married + gender + experience + experience_2 + experience_3, data = CPS1985)
+summary(mod2)
+```
+
+## Model diagnostics
+I chose the *First (exponential)* model, because:
+
+1. parameters are more significant (so parameters have a bigger influance on Y)
+2. R-squered is slightly better (so the model fits better the actual databoints). Both models have the same number of parameters, so Adjusted R-squared is not really important here
+3. Both models have similar p-values (2.2e-16) -- this is a very low value, so the probability that the model's result is only by chanse are slow.  
+
+
+## c heteroskedasticity- robust standar errors and P-values
+
+(the first model (exponential) was choosen, called `mod1`
+```{r}
+summary(mod1, robust=T)
+```
+
+## d Removing outliers
+
+1. I'm going to visualize the Cook distances for every datapoint
+```{r}
+cookd <- cooks.distance(mod2)
+summary(cookd)
+qplot(cookd, binwidth = 0.0001, xlim=c(0, 0.05))
+```
+
+I want to cut the outliers at 3rd quanticile, so i create the boolean-selector:
+
+```{r}
+cutter_at_3rd_qu <- cookd < 0.0014177
+```
+
+Visaulize the original set and the cutted set:
+```{r}
+cutted_data <- CPS1985[cutter_at_3rd_qu,]
+
+p1 <- ggplot(data=CPS1985, aes(x= (education + as.numeric(married) + as.numeric(gender) + experience + experience_2 + experience_3), y=log(wage))) + 
+  geom_jitter(alpha=0.2) +
+  scale_x_log10()
+
+p2 <- ggplot(data=cutted_data, aes(x= (education + as.numeric(married) + as.numeric(gender) + experience + experience_2 + experience_3), y=log(wage))) + 
+  geom_jitter(alpha=0.2) +
+  scale_x_log10()
+
+grid.arrange(p1, p2)
+
+```
+
+Re-building the model with the filtered dataset
+```{r}
+mod1_filtered <- lm(log(wage) ~ education + married + gender + experience + experience_2 + experience_3, data = cutted_data)
+```
+
+Testing original `mod1` against the same model run on filtered data `mod1_filtered` :
+```{r}
+summary(mod1)
+summary(mod1_filtered)
+```
+
+### Conclusion
+
+1. Filtered data has slightnly better significance values, but not a big difference. This is the right behaviour, because we are using the same dataset.
+2. Filered data has significantly better R-squared value (0.5 against 0.3)
+3. The conclusion is that filtering outliers makes the model fit better. However, if filtering too much outliers, it can result in a model which doesn't fit to the real world data.
+
+# 3, Polynomial model of degree five
+```{r}
+mod5 <- lm(log(wage) ~ education + married + gender + experience + experience_2 + experience_3 + experience_4 + experience_5, data = CPS1985)
+
+mod_lin <- lm(log(wage) ~ education + married + gender + experience, data = CPS1985)
+
+summary(mod5)
+summary(mod_lin)
+```
+### 3 a,
+On the linear model the only one linear parameter of `experience` is much more significant that the same paramater on 1 to 5 degree; meanwhile the adjusted R-squared is similar; so we should choose the simpler model.
+
+### 3 b,
+Joint test 5-degree X Linear:
+
+```{r}
+R = rbind(c(0,1,0,0,0,0,0,0,0),c(0,0,1,0,0,0,0,0,0),c(0,0,0,1,0,0,0,0,0),c(0,0,0,0,1,0,0,0,0))
+r = cbind(c(0,0,0,0))
+R
+r
+
+lht(mod5, R, rhs=r)
+```
+
+### 3 c,
+Joint test 5-degree X 3-degree:
+
+```{r}
+R = rbind(c(0,1,0,0,0,0,0,0,0),c(0,0,1,0,0,0,0,0,0),c(0,0,0,1,0,0,0,0,0),c(0,0,0,0,1,0,0,0,0),c(0,0,0,0,0,1,0,0,0),c(0,0,0,0,0,0,1,0,0))
+r = cbind(c(0,0,0,0,0,0))
+R
+r
+
+lht(mod5, R, rhs=r)
+```
+
+
+### d, Conclusion
+Adding the same parameter on higher power does not increades the performance -- even the `experience_2` and `experience_3` (which were relevant) got non-relevant. In my option the effect is because the 4th and the 5th degrees makes these parameters too dominant, so they outperform the effect of the other parameters
+
+However it is interesting that we also can add `experience_3 + experience_4 + experience_5` BUT NOT linear and `experience_2`, and get this parameters linear.
+
+Joint hypothesis shows that removing paramers creates worse F-values.
+
+# 4
+
+```{r}
+CPS1985$marr_wo <-  ifelse(CPS1985$gender == 'female' & CPS1985$married == 'yes', 1, 0)
+
+mod5_2 <- lm(log(wage) ~ marr_wo + education + married + gender + experience + experience_2 + experience_3 + experience_4 + experience_5, data = CPS1985)
+summary(mod5_2)
+
+```
+
+## b, Do men have a wage premium from marriage?
+
+* genderfemale beta = -1.305e-0
+* marr_wo beta = -1.848e-01
+
+From this model we don't know: we see that being non-married women has a negative effect; however it doesn't indicates that being married male has a positive effect. However, we can see this from the following model:
+
+```{r}
+CPS1985$marr_male <-  ifelse(CPS1985$gender == 'male' & CPS1985$married == 'yes', 1, 0)
+mod5_3 <- lm(log(wage) ~ marr_male + education + married + gender + experience + experience_2 + experience_3 + experience_4 + experience_5, data = CPS1985)
+summary(mod5_3)
+```
+
+marr_male beta = 1.848e; so it has a positive effect.
+
+
+
+
+
+
